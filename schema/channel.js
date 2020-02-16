@@ -6,8 +6,7 @@ export default `
     messages: [Message!]!
     users: [User!]!
   }
-
   type Mutation {
-    createChannel(team_id: Int!, name: String!, public: Boolean=false): Boolean!
+    createChannel(teamId: Int!, name: String!, public: Boolean=false): Boolean!
   }
 `;
