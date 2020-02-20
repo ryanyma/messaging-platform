@@ -5,7 +5,6 @@ export default {
   Query: {
     allTeams: requiresAuth.createResolver(
       async (parent, args, { models, user }) => {
-        console.log('FUCK YOU MANG');
         const allTeams = await models.Team.findAll(
           { where: { owner: user.id } },
           { raw: true },
@@ -13,26 +12,50 @@ export default {
         return allTeams;
       },
     ),
+    invitedTeams: requiresAuth.createResolver(async (parent, args, { models, user }) => models.sequelize.query('select * from teams join members on id = team_id where user_id = ?', {
+      replacements: [user.id],
+      model: models.Team,
+    })),
   },
   Mutation: {
     addTeamMember: requiresAuth.createResolver(
       async (parent, { email, teamId }, { models, user }) => {
         try {
-          const teamPromise = models.Team.findOne({ where: { id: teamId } }, { raw: true });
-          const userToAddPromise = models.User.findOne({ where: { email } }, { raw: true });
-          const [team, userToAdd] = await Promise.all([teamPromise, userToAddPromise]);
+          const teamPromise = models.Team.findOne(
+            { where: { id: teamId } },
+            { raw: true },
+          );
+          const userToAddPromise = models.User.findOne(
+            { where: { email } },
+            { raw: true },
+          );
+          const [team, userToAdd] = await Promise.all([
+            teamPromise,
+            userToAddPromise,
+          ]);
 
           if (team.owner !== user.id) {
             return {
               ok: false,
-              errors: [{ path: 'email', message: 'You do not have the permission to add members to the team' }],
+              errors: [
+                {
+                  path: 'email',
+                  message:
+                    'You do not have the permission to add members to the team',
+                },
+              ],
             };
           }
 
           if (!userToAdd) {
             return {
               ok: false,
-              errors: [{ path: 'email', message: 'Could not find this user with this email' }],
+              errors: [
+                {
+                  path: 'email',
+                  message: 'Could not find this user with this email',
+                },
+              ],
             };
           }
 
@@ -53,21 +76,19 @@ export default {
     createTeam: requiresAuth.createResolver(
       async (parent, args, { models, user }) => {
         try {
-          const response = await models.sequelize.transaction(
-            async () => {
-              const team = await models.Team.create({ ...args, owner: user.id });
-              await models.Channel.create({
-                name: 'general',
-                public: true,
-                teamId: team.id,
-              });
-              return team;
-            },
-          );
-
+          const response = await models.sequelize.transaction(async () => {
+            const team = await models.Team.create({ ...args, owner: user.id });
+            await models.Channel.create({
+              name: 'general',
+              public: true,
+              teamId: team.id,
+            });
+            return team;
+          });
+          console.log(response);
           return {
             ok: true,
-            response,
+            team: response,
           };
         } catch (err) {
           console.log(err);
