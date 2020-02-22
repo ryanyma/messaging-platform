@@ -6,14 +6,21 @@ import path from 'path';
 import { fileLoader, mergeTypes, mergeResolvers } from 'merge-graphql-schemas';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
-import models from './models';
+import { createServer } from 'http';
+import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { execute, subscribe } from 'graphql';
 import { refreshTokens } from './auth';
+import models from './models';
 
 const SECRET = 'kjwek1h23krh243lhr43r234r32';
 const SECRET2 = 'kjwek1h23krh243lhr43rr243tfwda234r32';
 
-const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')), { all: true });
-const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
+const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')), {
+  all: true,
+});
+const resolvers = mergeResolvers(
+  fileLoader(path.join(__dirname, './resolvers')),
+);
 
 const schema = makeExecutableSchema({
   typeDefs,
@@ -21,6 +28,7 @@ const schema = makeExecutableSchema({
 });
 
 const app = express();
+
 app.use(cors('*'));
 
 const addUser = async (req, res, next) => {
@@ -31,7 +39,13 @@ const addUser = async (req, res, next) => {
       req.user = user;
     } catch (err) {
       const refreshToken = req.headers['x-refresh-token'];
-      const newTokens = await refreshTokens(token, refreshToken, models, SECRET, SECRET2);
+      const newTokens = await refreshTokens(
+        token,
+        refreshToken,
+        models,
+        SECRET,
+        SECRET2,
+      );
       if (newTokens.token && newTokens.refreshToken) {
         res.set('Access-Control-Expose-Headers', 'x-token, x-refresh-token');
         res.set('x-token', newTokens.token);
@@ -47,18 +61,37 @@ app.use(addUser);
 
 const graphqlEndpoint = '/graphql';
 
-app.use(graphqlEndpoint, bodyParser.json(), graphqlExpress((req) => ({
-  schema,
-  context: {
-    models,
-    user: req.user,
-    SECRET,
-    SECRET2,
-  },
-})));
+app.use(
+  graphqlEndpoint,
+  bodyParser.json(),
+  graphqlExpress((req) => ({
+    schema,
+    context: {
+      models,
+      user: req.user,
+      SECRET,
+      SECRET2,
+    },
+  })),
+);
 
 app.use('/graphiql', graphiqlExpress({ endpointURL: graphqlEndpoint }));
 
+const ws = createServer(app);
+
 models.sequelize.sync().then(() => {
-  app.listen(8080);
+  ws.listen(8080, () => {
+    // eslint-disable-next-line no-new
+    new SubscriptionServer(
+      {
+        execute,
+        subscribe,
+        schema,
+      },
+      {
+        server: ws,
+        path: '/subscriptions',
+      },
+    );
+  });
 });

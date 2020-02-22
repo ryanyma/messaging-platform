@@ -7,6 +7,10 @@ export default `
     createdAt: String!
   }
 
+  type Subscription {
+    newChannelMessage(channelId: Int!): Message!
+  }
+
   type Query {
     getMessages(channelId: Int!): [Message!]!
   }
