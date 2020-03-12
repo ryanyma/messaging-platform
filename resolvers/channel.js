@@ -1,21 +1,24 @@
 import formatErrors from '../formatErrors';
 import requiresAuth from '../permission';
+import { QueryTypes } from 'sequelize';
 
 export default {
   Mutation: {
     createChannel: requiresAuth.createResolver(async (parent, args, { models, user }) => {
       try {
-        const team = await models.Team.findOne({ where: { id: args.teamId } }, { raw: true });
-
-        if (team.owner !== user.id) {
+        const member = await models.Member.findOne(
+          { where: { teamId: args.teamId, userId: user.id } },
+          { raw: true }
+        );
+        if (!member.admin) {
           return {
             ok: false,
             errors: [
               {
                 path: 'name',
-                message: 'Need to be owner of team to create channels',
-              },
-            ],
+                message: 'You have to be the owner of the team to create channels'
+              }
+            ]
           };
         }
 
@@ -23,15 +26,15 @@ export default {
 
         return {
           ok: true,
-          channel,
+          channel
         };
       } catch (err) {
         console.log(err);
         return {
           ok: false,
-          errors: formatErrors(err, models),
+          errors: formatErrors(err, models)
         };
       }
-    }),
-  },
+    })
+  }
 };

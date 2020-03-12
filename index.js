@@ -16,15 +16,13 @@ const SECRET = 'kjwek1h23krh243lhr43r234r32';
 const SECRET2 = 'kjwek1h23krh243lhr43rr243tfwda234r32';
 
 const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')), {
-  all: true,
+  all: true
 });
-const resolvers = mergeResolvers(
-  fileLoader(path.join(__dirname, './resolvers')),
-);
+const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
 const schema = makeExecutableSchema({
   typeDefs,
-  resolvers,
+  resolvers
 });
 
 const app = express();
@@ -39,13 +37,7 @@ const addUser = async (req, res, next) => {
       req.user = user;
     } catch (err) {
       const refreshToken = req.headers['x-refresh-token'];
-      const newTokens = await refreshTokens(
-        token,
-        refreshToken,
-        models,
-        SECRET,
-        SECRET2,
-      );
+      const newTokens = await refreshTokens(token, refreshToken, models, SECRET, SECRET2);
       if (newTokens.token && newTokens.refreshToken) {
         res.set('Access-Control-Expose-Headers', 'x-token, x-refresh-token');
         res.set('x-token', newTokens.token);
@@ -64,15 +56,15 @@ const graphqlEndpoint = '/graphql';
 app.use(
   graphqlEndpoint,
   bodyParser.json(),
-  graphqlExpress((req) => ({
+  graphqlExpress(req => ({
     schema,
     context: {
       models,
       user: req.user,
       SECRET,
-      SECRET2,
-    },
-  })),
+      SECRET2
+    }
+  }))
 );
 
 app.use('/graphiql', graphiqlExpress({ endpointURL: graphqlEndpoint }));
@@ -87,11 +79,24 @@ models.sequelize.sync().then(() => {
         execute,
         subscribe,
         schema,
+        onConnect: async ({ token, refreshToken }, webSocket) => {
+          if (token && refreshToken) {
+            let user = null;
+            try {
+              const { user } = jwt.verify(token, SECRET);
+              return { models, user };
+            } catch (err) {
+              const newTokens = await refreshTokens(token, refreshToken, models, SECRET, SECRET2);
+              return { models, user: newTokens.user };
+            }
+          }
+          return { models };
+        }
       },
       {
         server: ws,
-        path: '/subscriptions',
-      },
+        path: '/subscriptions'
+      }
     );
   });
 });

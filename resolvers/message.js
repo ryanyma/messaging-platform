@@ -1,5 +1,5 @@
 import { PubSub, withFilter } from 'graphql-subscriptions';
-import requiresAuth from '../permission';
+import requiresAuth, { requiresTeamAccess } from '../permission';
 
 const pubsub = new PubSub();
 
@@ -13,57 +13,57 @@ export default {
       }
 
       return models.User.findOne({ where: { id: userId } }, { raw: true });
-    },
+    }
   },
   Subscription: {
     newChannelMessage: {
-      subscribe: withFilter(
-        () => pubsub.asyncIterator(NEW_CHANNEL_MESSAGE),
-        (payload, args) => payload.channelId === args.channelId,
-      ),
-    },
+      subscribe: requiresTeamAccess.createResolver(
+        withFilter(
+          () => pubsub.asyncIterator(NEW_CHANNEL_MESSAGE),
+          (payload, args) => payload.channelId === args.channelId
+        )
+      )
+    }
   },
   Query: {
-    getMessages: requiresAuth.createResolver(
-      async (parent, { channelId }, { models }) => models.Message.findAll(
+    getMessages: requiresAuth.createResolver(async (parent, { channelId }, { models }) =>
+      models.Message.findAll(
         { order: [['created_at', 'ASC']], where: { channelId } },
-        { raw: true },
-      ),
-    ),
+        { raw: true }
+      )
+    )
   },
   Mutation: {
-    createMessage: requiresAuth.createResolver(
-      async (parent, args, { models, user }) => {
-        try {
-          const message = await models.Message.create({
-            ...args,
-            userId: user.id,
+    createMessage: requiresAuth.createResolver(async (parent, args, { models, user }) => {
+      try {
+        const message = await models.Message.create({
+          ...args,
+          userId: user.id
+        });
+
+        const asyncFunc = async () => {
+          const currentUser = await models.User.findOne({
+            where: {
+              id: user.id
+            }
           });
 
-          const asyncFunc = async () => {
-            const currentUser = await models.User.findOne({
-              where: {
-                id: user.id,
-              },
-            });
+          pubsub.publish(NEW_CHANNEL_MESSAGE, {
+            channelId: args.channelId,
+            newChannelMessage: {
+              ...message.dataValues,
+              user: currentUser.dataValues
+            }
+          });
+        };
 
-            pubsub.publish(NEW_CHANNEL_MESSAGE, {
-              channelId: args.channelId,
-              newChannelMessage: {
-                ...message.dataValues,
-                user: currentUser.dataValues,
-              },
-            });
-          };
+        asyncFunc();
 
-          asyncFunc();
-
-          return true;
-        } catch (err) {
-          console.log(err);
-          return false;
-        }
-      },
-    ),
-  },
+        return true;
+      } catch (err) {
+        console.log(err);
+        return false;
+      }
+    })
+  }
 };
