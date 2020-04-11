@@ -11,18 +11,19 @@ import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { execute, subscribe } from 'graphql';
 import { refreshTokens } from './auth';
 import models from './models';
+import formidable from 'formidable';
 
 const SECRET = 'kjwek1h23krh243lhr43r234r32';
 const SECRET2 = 'kjwek1h23krh243lhr43rr243tfwda234r32';
 
 const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')), {
-  all: true
+  all: true,
 });
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
 const schema = makeExecutableSchema({
   typeDefs,
-  resolvers
+  resolvers,
 });
 
 const app = express();
@@ -49,6 +50,42 @@ const addUser = async (req, res, next) => {
   next();
 };
 
+const uploadDir = 'files';
+
+const fileMiddleware = (req, res, next) => {
+  if (!req.is('multipart/form-data')) {
+    return next();
+  }
+
+  const form = formidable.IncomingForm({
+    uploadDir,
+  });
+
+  form.parse(req, (error, { operations }, files) => {
+    if (error) {
+      console.log(error);
+    }
+
+    const document = JSON.parse(operations);
+    console.log(document);
+    console.log('1');
+    console.log(files);
+    console.log('2');
+    if (Object.keys(files).length) {
+      const {
+        file: { type, path: filePath },
+      } = files;
+      document.variables.file = {
+        type,
+        path: filePath,
+      };
+    }
+    console.log(document);
+    req.body = document;
+    next();
+  });
+};
+
 app.use(addUser);
 
 const graphqlEndpoint = '/graphql';
@@ -56,14 +93,15 @@ const graphqlEndpoint = '/graphql';
 app.use(
   graphqlEndpoint,
   bodyParser.json(),
-  graphqlExpress(req => ({
+  fileMiddleware,
+  graphqlExpress((req) => ({
     schema,
     context: {
       models,
       user: req.user,
       SECRET,
-      SECRET2
-    }
+      SECRET2,
+    },
   }))
 );
 
@@ -71,7 +109,7 @@ app.use('/graphiql', graphiqlExpress({ endpointURL: graphqlEndpoint }));
 
 const ws = createServer(app);
 
-models.sequelize.sync({}).then(() => {
+models.sequelize.sync().then(() => {
   ws.listen(8080, () => {
     // eslint-disable-next-line no-new
     new SubscriptionServer(
@@ -91,11 +129,11 @@ models.sequelize.sync({}).then(() => {
             }
           }
           return { models };
-        }
+        },
       },
       {
         server: ws,
-        path: '/subscriptions'
+        path: '/subscriptions',
       }
     );
   });
