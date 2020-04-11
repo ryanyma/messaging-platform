@@ -10,10 +10,10 @@ export default {
         {
           replacements: [teamId],
           model: models.User,
-          raw: true
+          raw: true,
         }
       );
-    })
+    }),
   },
   Mutation: {
     addTeamMember: requiresAuth.createResolver(
@@ -32,9 +32,9 @@ export default {
               errors: [
                 {
                   path: 'email',
-                  message: 'You do not have the permission to add members to the team'
-                }
-              ]
+                  message: 'You do not have the permission to add members to the team',
+                },
+              ],
             };
           }
 
@@ -44,55 +44,61 @@ export default {
               errors: [
                 {
                   path: 'email',
-                  message: 'Could not find this user with this email'
-                }
-              ]
+                  message: 'Could not find this user with this email',
+                },
+              ],
             };
           }
 
           await models.Member.create({ userId: userToAdd.dataValues.id, teamId });
 
           return {
-            ok: true
+            ok: true,
           };
         } catch (err) {
           console.log(err);
           return {
             ok: false,
-            errors: formatErrors(err, models)
+            errors: formatErrors(err, models),
           };
         }
       }
     ),
     createTeam: requiresAuth.createResolver(async (parent, args, { models, user }) => {
       try {
-        const response = await models.sequelize.transaction(async () => {
+        const response = await models.sequelize.transaction(async (transaction) => {
           const team = await models.Team.create({ ...args });
-          await models.Channel.create({
-            name: 'general',
-            public: true,
-            teamId: team.id
-          });
-          await models.Member.create({
-            teamId: team.id,
-            userId: user.id,
-            admin: true
-          });
+          await models.Channel.create(
+            {
+              name: 'general',
+              public: true,
+              teamId: team.id,
+            },
+            { transaction }
+          );
+          await models.Member.create(
+            {
+              teamId: team.id,
+              userId: user.id,
+              admin: true,
+            },
+            { transaction }
+          );
           return team;
         });
         console.log(response);
         return {
           ok: true,
-          team: response
+          team: response,
         };
       } catch (err) {
         console.log(err);
         return {
           ok: false,
-          errors: formatErrors(err, models)
+          errors: formatErrors(err, models),
         };
       }
-    })
+    }),
   },
   Team: {
     channels: ({ id }, args, { models }) => models.Channel.findAll({ where: { teamId: id } }),
@@ -102,8 +108,8 @@ export default {
         {
           replacements: { currentUserId: user.id, teamId: id },
           model: models.User,
-          raw: true
+          raw: true,
         }
-      )
-  }
+      ),
+  },
 };
