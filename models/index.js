@@ -4,8 +4,8 @@ const sequelize = new Sequelize('messaging_platform', 'postgres', 'postgres', {
   dialect: 'postgres',
   operatorsAliases: Sequelize.Op,
   define: {
-    underscored: true
-  }
+    underscored: true,
+  },
 });
 
 const models = {
@@ -14,10 +14,11 @@ const models = {
   Message: sequelize.import('./message'),
   Member: sequelize.import('./member'),
   Team: sequelize.import('./team'),
-  DirectMessage: sequelize.import('./directMessage')
+  DirectMessage: sequelize.import('./directMessage'),
+  PCMember: sequelize.import('./pcmember'),
 };
 
-Object.keys(models).forEach(modelName => {
+Object.keys(models).forEach((modelName) => {
   if (models[modelName].associate) {
     models[modelName].associate(models);
   }
