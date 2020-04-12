@@ -1,0 +1,11 @@
+def duplicate(arr):
+    n = len(arr)
+    answer = False
+    for i in range(n):
+        for j in range(i + 1, n):
+            if (arr[i] == arr[j]):
+                j = True
+    return answer
+
+
+duplicate([1, 2, 3, 4, 4, 5])

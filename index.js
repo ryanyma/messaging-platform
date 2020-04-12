@@ -107,6 +107,8 @@ app.use(
 
 app.use('/graphiql', graphiqlExpress({ endpointURL: graphqlEndpoint }));
 
+app.use('/files', express.static('files'));
+
 const ws = createServer(app);
 
 models.sequelize.sync().then(() => {
