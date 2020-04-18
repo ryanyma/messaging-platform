@@ -1,3 +1,5 @@
-import { PubSub } from 'graphql-subscriptions';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
 
-export default new PubSub();
+const pubsub = new RedisPubSub();
+
+export default pubsub;
