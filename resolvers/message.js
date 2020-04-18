@@ -1,6 +1,7 @@
 import { PubSub, withFilter } from 'graphql-subscriptions';
 import requiresAuth, { requiresTeamAccess } from '../permission';
 import pubsub from '../pubsub';
+import { Op } from 'sequelize';
 
 const NEW_CHANNEL_MESSAGE = 'NEW_CHANNEL_MESSAGE';
 
@@ -26,24 +27,35 @@ export default {
     },
   },
   Query: {
-    getMessages: requiresAuth.createResolver(async (parent, { channelId }, { models, user }) => {
-      const channel = await models.Channel.findOne({ raw: true, where: { id: channelId } });
+    getMessages: requiresAuth.createResolver(
+      async (parent, { cursor, channelId }, { models, user }) => {
+        const channel = await models.Channel.findOne({ raw: true, where: { id: channelId } });
 
-      if (!channel.public) {
-        const member = await models.PCMember.findOne({
-          raw: true,
-          where: { channelId, userId: user.id },
-        });
-        if (!member) {
-          throw new Error('Not Authorized');
+        if (!channel.public) {
+          const member = await models.PCMember.findOne({
+            raw: true,
+            where: { channelId, userId: user.id },
+          });
+          if (!member) {
+            throw new Error('Not Authorized');
+          }
         }
-      }
 
-      return models.Message.findAll(
-        { order: [['created_at', 'ASC']], where: { channelId } },
-        { raw: true }
-      );
-    }),
+        const options = {
+          order: [['created_at', 'DESC']],
+          where: { channelId },
+          limit: 35,
+        };
+
+        if (cursor) {
+          options.where.created_at = {
+            [Op.lt]: new Date(parseInt(cursor, 10)).toString(),
+          };
+        }
+
+        return models.Message.findAll(options, { raw: true });
+      }
+    ),
   },
   Mutation: {
     createMessage: requiresAuth.createResolver(
