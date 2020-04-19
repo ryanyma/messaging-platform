@@ -12,6 +12,8 @@ import { execute, subscribe } from 'graphql';
 import { refreshTokens } from './auth';
 import models from './models';
 import formidable from 'formidable';
+import DataLoader from 'dataloader';
+import { channelBatcher } from './batchFunction';
 
 const SECRET = 'kjwek1h23krh243lhr43r234r32';
 const SECRET2 = 'kjwek1h23krh243lhr43rr243tfwda234r32';
@@ -67,10 +69,7 @@ const fileMiddleware = (req, res, next) => {
     }
 
     const document = JSON.parse(operations);
-    console.log(document);
-    console.log('1');
-    console.log(files);
-    console.log('2');
+
     if (Object.keys(files).length) {
       const {
         file: { type, path: filePath },
@@ -80,7 +79,7 @@ const fileMiddleware = (req, res, next) => {
         path: filePath,
       };
     }
-    console.log(document);
+
     req.body = document;
     next();
   });
@@ -101,6 +100,7 @@ app.use(
       user: req.user,
       SECRET,
       SECRET2,
+      channelLoader: new DataLoader((ids) => channelBatcher(ids, models, req.user)),
     },
   }))
 );
