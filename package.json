@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "serve": "node dist/index.js",
+    "build": "babel src -d dist",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --exec babel-node index.js"
+    "start": "nodemon --exec babel-node src/index.js"
   },
   "repository": {
     "type": "git",
