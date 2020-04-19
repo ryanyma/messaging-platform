@@ -3,8 +3,7 @@ import bodyParser from 'body-parser';
 import { graphqlExpress, graphiqlExpress } from 'apollo-server-express';
 import { makeExecutableSchema } from 'graphql-tools';
 import path from 'path';
-import { fileLoader, mergeTypes, mergeResolvers } from 'merge-graphql-schemas';
-import cors from 'cors';
+
 import jwt from 'jsonwebtoken';
 import { createServer } from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
@@ -14,6 +13,8 @@ import models from './models';
 import formidable from 'formidable';
 import DataLoader from 'dataloader';
 import { channelBatcher } from './batchFunction';
+import { fileLoader, mergeTypes, mergeResolvers } from 'merge-graphql-schemas';
+import cors from 'cors';
 
 const SECRET = 'kjwek1h23krh243lhr43r234r32';
 const SECRET2 = 'kjwek1h23krh243lhr43rr243tfwda234r32';
