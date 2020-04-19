@@ -6,6 +6,8 @@ services:
       - webnet
   db:
     image: postgres
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
     networks:
       - webnet
     environment:
@@ -16,6 +18,8 @@ services:
     image: messaging-platform
     ports:
       - '8080:8080'
+    depends_on:
+      - 'db'
     networks:
       - webnet
     environment:
